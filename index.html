@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>الصيرفي — الكاش فلو</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --navy: #002060; --navy2: #001233;
+    --green: #00b04f; --red: #e05c5c; --red-card: #8f2f3b;
+    --amber: #d99a2b;
+    --line: #9aa6e8;
+    --bg: #060d22; --card: #0c1736; --border: rgba(255,255,255,.09);
+    --ink: #eef2fb; --muted: #93a0c4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: "Segoe UI", Tahoma, sans-serif; }
+  body { background: var(--bg); color: var(--ink); padding: 0 0 60px; }
+
+  header {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%);
+    padding: 16px 28px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    border-bottom: 3px solid var(--green);
+  }
+  header h1 { font-size: 20px; font-weight: 800; color: #fff; }
+  header h1 span { color: var(--green); }
+  header .sub-en { font-size: 11px; font-weight: 700; letter-spacing: .5px; color: var(--green); margin-top: 2px; }
+  header .spacer { flex: 1; }
+  select#monthSel {
+    font-size: 15px; font-weight: 800; padding: 10px 16px; border-radius: 11px;
+    border: 2px solid var(--green); background: #fff; color: var(--navy); cursor: pointer;
+  }
+
+  nav.tabs { max-width: 1240px; margin: 18px auto 0; padding: 0 22px; display: flex; gap: 10px; flex-wrap: wrap; }
+  nav.tabs button {
+    background: var(--card); border: 1px solid var(--border); color: var(--muted);
+    padding: 10px 18px; border-radius: 10px 10px 0 0; font-size: 14px; font-weight: 700; cursor: pointer;
+  }
+  nav.tabs button.active { background: var(--navy); color: #fff; border-bottom: 3px solid var(--green); }
+
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 22px; }
+  .page { display: none; } .page.active { display: block; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 14px; }
+  .kpi { border-radius: 14px; padding: 18px 18px 15px; text-align: center; background: var(--navy); box-shadow: 0 4px 14px rgba(0,0,0,.35); }
+  .kpi .v { font-family: "Arial Black", "Segoe UI", sans-serif; font-size: 28px; font-weight: 900; color: #fff; direction: ltr; letter-spacing: .5px; line-height: 1.1; }
+  .kpi .t { font-size: 13px; color: rgba(255,255,255,.92); font-weight: 700; margin-top: 8px; }
+  .kpi.k-green { background: var(--green); }
+  .kpi.k-red { background: var(--red-card); }
+  .kpi.k-amber { background: var(--amber); }
+
+  .grid2 { display: grid; grid-template-columns: 1.6fr 1fr; gap: 14px; margin-top: 14px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; margin-top: 14px; }
+  .card h2 { font-size: 15px; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; color: #fff; }
+  .card h2 .hint { font-size: 11px; color: var(--muted); font-weight: 400; }
+  .card h2::before { content: ""; width: 4px; height: 18px; background: var(--green); border-radius: 2px; }
+
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-left: 5px; }
+
+  .bar-row { display: grid; grid-template-columns: 150px 1fr 110px 52px; align-items: center; gap: 10px; margin-bottom: 9px; font-size: 13px; }
+  .bar-row .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-track { background: rgba(255,255,255,.07); border-radius: 6px; height: 14px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 6px; }
+  .bar-row .amt { direction: ltr; text-align: right; font-weight: 800; font-size: 12.5px; }
+  .bar-row .pct { color: var(--muted); font-size: 12px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: right; color: var(--muted); font-size: 12px; padding: 8px 10px; border-bottom: 2px solid var(--border); position: sticky; top: 0; background: var(--card); z-index: 1; }
+  td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  td.num { direction: ltr; text-align: right; font-weight: 700; }
+  tr:hover td { background: rgba(255,255,255,.04); }
+  .pos { color: #2ed573; } .neg { color: #ff6b6b; }
+  .tablewrap { max-height: 420px; overflow: auto; }
+  .muted { color: var(--muted); }
+
+  .drop {
+    border: 2px dashed var(--line); border-radius: 14px; padding: 40px; text-align: center;
+    color: var(--muted); cursor: pointer; background: var(--card);
+  }
+  .drop.drag { background: rgba(0,176,79,.08); border-color: var(--green); }
+  .drop input { display: none; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 800; }
+  .badge.ok { background: rgba(0,176,79,.18); color: #2ed573; }
+  .badge.warn { background: rgba(217,154,43,.18); color: var(--amber); }
+  .badge.bad { background: rgba(224,92,92,.18); color: #ff6b6b; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>الصيرفي <span>— لوحة الكاش فلو</span><br><span class="sub-en">Cash Flow Dashboard</span></h1>
+  <div class="spacer"></div>
+  <label>الشهر: </label>
+  <select id="monthSel"></select>
+</header>
+
+<nav class="tabs">
+  <button data-page="dash" class="active">📊 الداشبورد</button>
+  <button data-page="variance">⚖️ مقارنة تقديري / فعلي</button>
+  <button data-page="year">📈 نظرة سنوية</button>
+</nav>
+
+<div class="wrap">
+
+  <!-- ================= DASHBOARD PAGE ================= -->
+  <div id="page-dash" class="page active">
+    <div class="kpis" id="kpis"></div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2>📅 الحركة اليومية <span class="hint">مقبوضات ومدفوعات ورصيد تراكمي يوم بيوم</span></h2>
+        <div class="legend">
+          <span><i style="background:var(--green)"></i>مقبوضات</span>
+          <span><i style="background:var(--red)"></i>مدفوعات</span>
+          <span><i style="background:var(--line)"></i>الرصيد التراكمي</span>
+        </div>
+        <div id="dailyChart"></div>
+      </div>
+      <div class="card">
+        <h2>🥧 تحليل المصروفات</h2>
+        <div id="expBars"></div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h2>💰 مصادر المقبوضات</h2>
+        <div id="recBars"></div>
+      </div>
+      <div class="card">
+        <h2>🏭 مدفوعات الموردين</h2>
+        <div class="tablewrap"><table id="supTable"></table></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🗓 تفاصيل الأيام</h2>
+      <div class="tablewrap"><table id="dayTable"></table></div>
+    </div>
+  </div>
+
+  <!-- ================= VARIANCE PAGE ================= -->
+  <div id="page-variance" class="page">
+    <div class="card">
+      <h2>⚖️ مقارنة التقديري بالفعلي <span class="hint">ارفع ملف الكاش فلو الفعلي وقارنه بالخطة</span></h2>
+      <p class="muted" style="margin-bottom:14px">
+        اختار الشهر من فوق، وبعدين ارفع ملف الإكسيل اللي فيه الأرقام الفعلية
+        (لازم يكون بنفس شكل شيت Dashboard-الشهر: تاريخ، مقبوضات، مدفوعات، رصيد تراكمي).
+        كل حاجة بتتحلل جوه المتصفح نفسه - الملف مش بيترفع لأي سيرفر.
+      </p>
+      <div class="drop" id="drop">
+        📂 اسحب ملف الإكسيل هنا أو دوس هنا لاختياره
+        <input type="file" id="fileInput" accept=".xlsx,.xls">
+      </div>
+      <div id="varStatus" style="margin-top:14px"></div>
+    </div>
+
+    <div id="varResults" style="display:none">
+      <div class="kpis" id="varKpis"></div>
+      <div class="card">
+        <h2>📅 مقارنة يومية <span class="hint">تقديري مقابل فعلي</span></h2>
+        <div class="legend">
+          <span><i style="background:var(--green)"></i>تقديري</span>
+          <span><i style="background:var(--red)"></i>فعلي</span>
+        </div>
+        <div id="varChart"></div>
+      </div>
+      <div class="card">
+        <h2>📋 جدول الانحراف اليومي</h2>
+        <div class="tablewrap"><table id="varTable"></table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= YEAR OVERVIEW PAGE ================= -->
+  <div id="page-year" class="page">
+    <div class="card">
+      <h2>📈 نظرة سنوية <span class="hint">كل الشهور مع بعض</span></h2>
+      <div id="yearChart"></div>
+    </div>
+    <div class="card">
+      <h2>📋 جدول مقارنة الشهور</h2>
+      <div class="tablewrap"><table id="yearTable"></table></div>
+    </div>
+  </div>
+
+</div>
+
+<script src="plan-data.js"></script>
+<script>
+const PLAN = window.PLAN_DATA;
+const fmt = n => (n || 0).toLocaleString('en-US', {maximumFractionDigits: 0});
+const monthSel = document.getElementById('monthSel');
+
+// ---------- tabs ----------
+document.querySelectorAll('nav.tabs button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav.tabs button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('page-' + btn.dataset.page).classList.add('active');
+  });
+});
+
+// ---------- month selector ----------
+PLAN.monthsOrder.forEach(m => {
+  if (!PLAN.months[m]) return;
+  const opt = document.createElement('option');
+  opt.value = m; opt.textContent = m + (PLAN.months[m].hasData ? '' : ' (لا بيانات)');
+  monthSel.appendChild(opt);
+});
+monthSel.addEventListener('change', () => { renderDashboard(); renderVarianceIfReady(); });
+
+// ---------- KPI cards ----------
+function renderKpis(container, cards) {
+  container.innerHTML = cards.map(c => `
+    <div class="kpi ${c.color === 'green' ? 'k-green' : c.color === 'red' ? 'k-red' : c.color === 'amber' ? 'k-amber' : ''}">
+      <div class="v">${fmt(c.value)}</div>
+      <div class="t">${c.label}</div>
+    </div>`).join('');
+}
+
+// ---------- bar list ----------
+function renderBars(container, items, color) {
+  if (!items.length) { container.innerHTML = '<p class="muted">لا توجد بيانات</p>'; return; }
+  const max = Math.max(...items.map(i => i.amount));
+  const total = items.reduce((a, i) => a + i.amount, 0);
+  container.innerHTML = items.map(i => `
+    <div class="bar-row">
+      <span class="name" title="${i.name}">${i.name}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${(i.amount/max*100).toFixed(1)}%;background:${color}"></div></div>
+      <span class="amt">${fmt(i.amount)}</span>
+      <span class="pct">${total ? (i.amount/total*100).toFixed(1) : 0}%</span>
+    </div>`).join('');
+}
+
+// ---------- simple combo chart (bars + line) ----------
+function comboChart(days, w, h) {
+  if (!days.length) return '<p class="muted">لا توجد بيانات</p>';
+  const padL = 55, padR = 15, padT = 15, padB = 30;
+  const innerW = w - padL - padR, innerH = h - padT - padB;
+  const maxBar = Math.max(...days.map(d => Math.max(d.receipts, d.payments, 1)));
+  const cums = days.map(d => d.cumulative);
+  const minC = Math.min(...cums, 0), maxC = Math.max(...cums, 1);
+  const bw = innerW / days.length;
+  const yBar = v => padT + innerH - (v / maxBar) * innerH;
+  const yLine = v => padT + innerH - ((v - minC) / (maxC - minC || 1)) * innerH;
+  let svg = `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:${h}px">`;
+  svg += `<line x1="${padL}" y1="${yLine(0)}" x2="${w-padR}" y2="${yLine(0)}" stroke="var(--border)" stroke-dasharray="4,4"/>`;
+  days.forEach((d, i) => {
+    const cx = padL + i * bw + bw / 2;
+    svg += `<rect x="${cx-bw/2+1}" y="${yBar(d.receipts)}" width="${bw/2-2}" height="${padT+innerH-yBar(d.receipts)}" fill="var(--green)" rx="1"><title>${d.date}\nمقبوضات: ${fmt(d.receipts)}</title></rect>`;
+    svg += `<rect x="${cx+1}" y="${yBar(d.payments)}" width="${bw/2-2}" height="${padT+innerH-yBar(d.payments)}" fill="var(--red)" rx="1"><title>${d.date}\nمدفوعات: ${fmt(d.payments)}</title></rect>`;
+  });
+  let pts = days.map((d, i) => `${padL + i*bw + bw/2},${yLine(d.cumulative)}`).join(' ');
+  svg += `<polyline points="${pts}" fill="none" stroke="var(--line)" stroke-width="2"/>`;
+  svg += `</svg>`;
+  return svg;
+}
+
+// ---------- var. combo chart (two series only) ----------
+function varChart(days, w, h) {
+  if (!days.length) return '<p class="muted">لا توجد بيانات</p>';
+  const padL = 55, padR = 15, padT = 15, padB = 30;
+  const innerW = w - padL - padR, innerH = h - padT - padB;
+  const maxV = Math.max(...days.map(d => Math.max(d.planNet, d.actualNet, 1)), 1);
+  const minV = Math.min(...days.map(d => Math.min(d.planNet, d.actualNet, 0)), 0);
+  const bw = innerW / days.length;
+  const yv = v => padT + innerH - ((v - minV) / (maxV - minV || 1)) * innerH;
+  let svg = `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:${h}px">`;
+  svg += `<line x1="${padL}" y1="${yv(0)}" x2="${w-padR}" y2="${yv(0)}" stroke="var(--border)" stroke-dasharray="4,4"/>`;
+  let pPts = days.map((d,i) => `${padL+i*bw+bw/2},${yv(d.planNet)}`).join(' ');
+  let aPts = days.map((d,i) => `${padL+i*bw+bw/2},${yv(d.actualNet)}`).join(' ');
+  svg += `<polyline points="${pPts}" fill="none" stroke="var(--green)" stroke-width="2.5"/>`;
+  svg += `<polyline points="${aPts}" fill="none" stroke="var(--red)" stroke-width="2.5"/>`;
+  svg += `</svg>`;
+  return svg;
+}
+
+// ---------- dashboard render ----------
+function renderDashboard() {
+  const m = PLAN.months[monthSel.value];
+  if (!m) return;
+  renderKpis(document.getElementById('kpis'), m.summary.cards);
+  document.getElementById('dailyChart').innerHTML = comboChart(m.daily, 900, 260);
+  renderBars(document.getElementById('expBars'), m.expenses.categories, 'var(--red)');
+  renderBars(document.getElementById('recBars'), m.receipts, 'var(--green)');
+
+  const sup = document.getElementById('supTable');
+  sup.innerHTML = '<tr><th>المورد</th><th>المبلغ</th></tr>' +
+    m.suppliers.slice(0, 30).map(s => `<tr><td>${s.name}</td><td class="num">${fmt(s.total)}</td></tr>`).join('');
+
+  const day = document.getElementById('dayTable');
+  day.innerHTML = '<tr><th>اليوم</th><th>التاريخ</th><th>مقبوضات</th><th>مدفوعات</th><th>الصافي</th><th>التراكمي</th></tr>' +
+    m.daily.map(d => `<tr><td>${d.dayName}</td><td>${d.date}</td>
+      <td class="num pos">${fmt(d.receipts)}</td><td class="num neg">${fmt(d.payments)}</td>
+      <td class="num ${d.net>=0?'pos':'neg'}">${fmt(d.net)}</td><td class="num">${fmt(d.cumulative)}</td></tr>`).join('');
+}
+
+// ---------- year overview ----------
+function renderYear() {
+  if (!PLAN.yearOverview) {
+    document.getElementById('yearChart').innerHTML = '<p class="muted">مفيش نظرة سنوية في البيانات دي</p>';
+    return;
+  }
+  const months = PLAN.yearOverview.months.filter(m => m.receipts || m.payments);
+  const w = 900, h = 280, padL = 60, padR = 15, padT = 15, padB = 40;
+  const innerW = w - padL - padR, innerH = h - padT - padB;
+  const maxV = Math.max(...months.map(m => Math.max(m.receipts, m.payments)), 1);
+  const bw = innerW / months.length;
+  const yv = v => padT + innerH - (v / maxV) * innerH;
+  let svg = `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:${h}px">`;
+  months.forEach((m, i) => {
+    const cx = padL + i * bw + bw / 2;
+    svg += `<rect x="${cx-bw/2+2}" y="${yv(m.receipts)}" width="${bw/2-4}" height="${padT+innerH-yv(m.receipts)}" fill="var(--green)" rx="2"><title>${m.month}</title></rect>`;
+    svg += `<rect x="${cx+2}" y="${yv(m.payments)}" width="${bw/2-4}" height="${padT+innerH-yv(m.payments)}" fill="var(--red)" rx="2"><title>${m.month}</title></rect>`;
+    svg += `<text x="${cx}" y="${h-10}" text-anchor="middle" font-size="11" fill="var(--muted)">${m.month}</text>`;
+  });
+  svg += '</svg>';
+  document.getElementById('yearChart').innerHTML = svg;
+
+  const t = document.getElementById('yearTable');
+  t.innerHTML = '<tr><th>الشهر</th><th>افتتاحي</th><th>مقبوضات</th><th>مدفوعات</th><th>صافي</th><th>نهائي</th></tr>' +
+    months.map(m => `<tr><td>${m.month}</td><td class="num">${fmt(m.opening)}</td>
+      <td class="num pos">${fmt(m.receipts)}</td><td class="num neg">${fmt(m.payments)}</td>
+      <td class="num ${m.net>=0?'pos':'neg'}">${fmt(m.net)}</td><td class="num">${fmt(m.closing)}</td></tr>`).join('');
+}
+
+// ================= VARIANCE (Plan vs Actual) =================
+const ARABIC_WEEKDAY = ["الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت","الأحد"];
+const DAY_NAMES = new Set(ARABIC_WEEKDAY.concat(["الاثنين"]));
+
+function excelDateToJs(v) {
+  if (v instanceof Date) return v;
+  if (typeof v === 'number') return new Date(Math.round((v - 25569) * 86400 * 1000));
+  return null;
+}
+
+function toNum(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  if (typeof v === 'number') return v;
+  const n = parseFloat(String(v).replace(/,/g, ''));
+  return isNaN(n) ? 0 : n;
+}
+
+function extractActualDaily(wb) {
+  // نلاقي أول شيت اسمه فيه "Dashboard" أو أي شيت فيه صف عناوين "اليوم"/"التاريخ"
+  let sheetName = wb.SheetNames.find(n => n.toLowerCase().includes('dashboard'));
+  if (!sheetName) sheetName = wb.SheetNames[0];
+  const ws = wb.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(ws, {header: 1, raw: true, defval: null});
+  const days = [];
+  for (let i = 9; i < rows.length; i++) {
+    const r = rows[i] || [];
+    const label = (r[0] || '').toString().trim();
+    const joined = label + (r[1] || '');
+    if (joined.includes('تحليل المصروفات') || joined.includes('الفئة')) break;
+    const dateVal = excelDateToJs(r[1]);
+    if (dateVal && !isNaN(dateVal)) {
+      const receipts = toNum(r[2]), payments = toNum(r[3]);
+      if (receipts > 0 || payments > 0) {
+        days.push({
+          date: dateVal, dateStr: dateVal.toLocaleDateString('en-GB'),
+          receipts, payments,
+          net: r[4] !== null && r[4] !== undefined ? toNum(r[4]) : receipts - payments,
+          cumulative: toNum(r[5]),
+        });
+      }
+    }
+  }
+  return {sheetName, days};
+}
+
+let lastActual = null;
+
+function handleFile(file) {
+  const status = document.getElementById('varStatus');
+  status.innerHTML = '<span class="badge warn">بيتحلل...</span>';
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type: 'array', cellDates: true});
+      const {sheetName, days} = extractActualDaily(wb);
+      if (!days.length) {
+        status.innerHTML = '<span class="badge bad">مش لاقي صفوف أيام بمقبوضات/مدفوعات في الشيت "' + sheetName + '" - ابعت الملف لكلود يظبط القراءة</span>';
+        return;
+      }
+      lastActual = {sheetName, days, fileName: file.name};
+      status.innerHTML = `<span class="badge ok">تم - ${days.length} يوم من شيت "${sheetName}" (${file.name})</span>`;
+      renderVarianceIfReady();
+    } catch (err) {
+      status.innerHTML = '<span class="badge bad">خطأ في قراءة الملف: ' + err.message + '</span>';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function renderVarianceIfReady() {
+  if (!lastActual) return;
+  const planMonth = PLAN.months[monthSel.value];
+  if (!planMonth) return;
+
+  // نطابق الأيام بالتاريخ (يوم/شهر) بدون سنة، عشان لو السنة مختلفة في ملف الفعلي
+  const planByDay = {};
+  planMonth.daily.forEach(d => {
+    const [dd, mm] = d.date.split('/');
+    planByDay[`${dd}/${mm}`] = d;
+  });
+
+  const rows = [];
+  lastActual.days.forEach(a => {
+    const dd = String(a.date.getDate()).padStart(2,'0');
+    const mm = String(a.date.getMonth()+1).padStart(2,'0');
+    const key = `${dd}/${mm}`;
+    const p = planByDay[key];
+    if (!p) return;
+    rows.push({
+      date: key,
+      planReceipts: p.receipts, actualReceipts: a.receipts,
+      planPayments: p.payments, actualPayments: a.payments,
+      planNet: p.net, actualNet: a.net,
+      diffReceipts: a.receipts - p.receipts,
+      diffPayments: a.payments - p.payments,
+      diffNet: a.net - p.net,
+    });
+  });
+
+  if (!rows.length) {
+    document.getElementById('varResults').style.display = 'none';
+    document.getElementById('varStatus').innerHTML += '<br><span class="badge bad">مفيش تواريخ متطابقة بين الملف الفعلي والشهر المختار</span>';
+    return;
+  }
+
+  document.getElementById('varResults').style.display = 'block';
+
+  const totalPlanRec = rows.reduce((a,r)=>a+r.planReceipts,0);
+  const totalActRec = rows.reduce((a,r)=>a+r.actualReceipts,0);
+  const totalPlanPay = rows.reduce((a,r)=>a+r.planPayments,0);
+  const totalActPay = rows.reduce((a,r)=>a+r.actualPayments,0);
+
+  renderKpis(document.getElementById('varKpis'), [
+    {label:'📈 مقبوضات تقديري', value: totalPlanRec, color:'blue'},
+    {label:'📈 مقبوضات فعلي', value: totalActRec, color:'green'},
+    {label:'📉 مدفوعات تقديري', value: totalPlanPay, color:'blue'},
+    {label:'📉 مدفوعات فعلي', value: totalActPay, color:'red'},
+    {label:'⚖️ انحراف الصافي', value: (totalActRec-totalActPay)-(totalPlanRec-totalPlanPay), color: ((totalActRec-totalActPay)-(totalPlanRec-totalPlanPay))>=0?'green':'red'},
+  ]);
+
+  document.getElementById('varChart').innerHTML = varChart(rows, 900, 260);
+
+  const t = document.getElementById('varTable');
+  const THRESH = 0.1; // 10% انحراف يتعلم بالأحمر
+  const flag = (plan, diff) => {
+    if (!plan) return diff !== 0 ? 'neg' : '';
+    return Math.abs(diff/plan) > THRESH ? 'neg' : 'pos';
+  };
+  t.innerHTML = '<tr><th>التاريخ</th><th>مقبوضات تقديري</th><th>مقبوضات فعلي</th><th>فرق</th><th>مدفوعات تقديري</th><th>مدفوعات فعلي</th><th>فرق</th></tr>' +
+    rows.map(r => `<tr>
+      <td>${r.date}</td>
+      <td class="num">${fmt(r.planReceipts)}</td>
+      <td class="num">${fmt(r.actualReceipts)}</td>
+      <td class="num ${flag(r.planReceipts, r.diffReceipts)}">${r.diffReceipts>=0?'+':''}${fmt(r.diffReceipts)}</td>
+      <td class="num">${fmt(r.planPayments)}</td>
+      <td class="num">${fmt(r.actualPayments)}</td>
+      <td class="num ${flag(r.planPayments, r.diffPayments)}">${r.diffPayments>=0?'+':''}${fmt(r.diffPayments)}</td>
+    </tr>`).join('');
+}
+
+// ---------- upload wiring ----------
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('fileInput');
+drop.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('drag'); }));
+drop.addEventListener('drop', e => { if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+
+// ---------- init ----------
+const firstWithData = PLAN.monthsOrder.find(m => PLAN.months[m] && PLAN.months[m].hasData) || PLAN.monthsOrder[0];
+monthSel.value = firstWithData;
+renderDashboard();
+renderYear();
+</script>
+</body>
+</html>
